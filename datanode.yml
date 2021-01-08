@@ -1,0 +1,65 @@
+- hosts: datanode
+  vars_prompt: 
+  - name: data_directory
+    prompt: "Enter datanode directory name:"
+    private: no
+
+  - name: ip_address
+    prompt: "Enter namenode ip:"
+    private: no
+
+  - name: port_number
+    prompt: "Enter port no.:"
+    private: no
+
+  tasks:
+          - name: "copying hadoop"
+            copy:
+                    src: "/root/hadoop-1.2.1-1.x86_64.rpm"
+                    dest: "/root/"
+
+          - name: "copying jdk"
+            copy:
+                    src: "/root/jdk-8u171-linux-x64.rpm"
+                    dest: "/root/"
+
+          - name: "installing jdk"
+            command: "rpm -i /root/jdk-8u171-linux-x64.rpm"
+            ignore_errors: yes
+
+          - name: "installing hadoop"
+            command: "rpm -i /root/hadoop-1.2.1-1.x86_64.rpm --force"
+            ignore_errors: yes
+
+          - name: "Creating datanode directory"
+            file:
+                    path: "{{ data_directory }}"
+                    state: directory
+
+          - name: "Configuring core-site.xml"
+            blockinfile:
+                    path: /etc/hadoop/core-site.xml
+                    insertafter: "<configuration>"
+                    block:
+                           <property>
+                           <name>fs.default.name</name>
+                           <value>hdfs://{{ ip_address }}:{{ port_number }}</value>
+                          </property>
+
+          - name: "Configuring hdfs-site.xml"
+            blockinfile:
+                    path: /etc/hadoop/hdfs-site.xml
+                    insertafter: "<configuration>"
+                    block:
+                            <property>
+                            <name>dfs.data.dir</name>
+                            <value>{{ data_directory }}</value>
+                            </property>
+
+          - name: "Start datanode services"
+            shell: "hadoop-daemon.sh start datanode"
+
+          - name: "Stop firewall"
+            shell: "systemctl stop firewalld"
+
+          - shell: "jps"
